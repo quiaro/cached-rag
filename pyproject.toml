@@ -1,5 +1,5 @@
 [project]
-name = "15-app"
+name = "cached-rag"
 version = "0.1.0"
 description = "Session 15 - Open Source Endpoints"
 readme = "README.md"
