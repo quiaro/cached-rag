@@ -1,12 +1,14 @@
 import os
+import time
+import logging
 import chainlit as cl
 import datetime
 import hashlib
+import argparse
 from dotenv import load_dotenv
 from operator import itemgetter
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
-# from langchain_huggingface import HuggingFaceEndpoint
 from langchain_together import ChatTogether, TogetherEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -34,6 +36,17 @@ We will load our environment variables here.
 TOGETHER_API_KEY = os.environ["TOGETHER_API_KEY"]
 HF_LLM_ENDPOINT = os.environ["HF_LLM_ENDPOINT"]
 HF_EMBED_ENDPOINT = os.environ["HF_EMBED_ENDPOINT"]
+QDRANT_HOST = os.environ["QDRANT_HOST"]
+QDRANT_PORT = os.environ["QDRANT_PORT"]
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(getattr(logging, LOG_LEVEL))
 
 os.environ["LANGCHAIN_PROJECT"] = f"Cached RAG - {timestamp}"
 # -- RETRIEVAL -- #
@@ -44,7 +57,6 @@ os.environ["LANGCHAIN_PROJECT"] = f"Cached RAG - {timestamp}"
 4. Index Files if they do not exist, otherwise load the vectorstore
 """
 ### 1. CREATE TEXT LOADER AND LOAD DOCUMENTS
-### NOTE: PAY ATTENTION TO THE PATH THEY ARE IN. 
 text_loader = TextLoader("./data/paul_graham_short.txt")
 documents = text_loader.load()
 
@@ -60,18 +72,20 @@ hf_embeddings = TogetherEmbeddings(
 safe_namespace = hashlib.md5(hf_embeddings.model.encode()).hexdigest()
 collection_name = "paul_graham_essays"
 
-store = LocalFileStore("./cache/")
+store = LocalFileStore(f"./cache/{safe_namespace}/")
 cached_embedder = CacheBackedEmbeddings.from_bytes_store(
     hf_embeddings, store, namespace=safe_namespace, batch_size=32
 )
 
-print(list(store.yield_keys())[:5])
 
-client = QdrantClient(":memory:")
-client.create_collection(
-    collection_name=collection_name,
-    vectors_config=VectorParams(size=768, distance=Distance.COSINE),
-)
+client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+# Check if collection exists before creating it
+collections = client.get_collections().collections
+if not any(c.name == collection_name for c in collections):
+    client.create_collection(
+        collection_name=collection_name,
+        vectors_config=VectorParams(size=768, distance=Distance.COSINE),
+    )
 
 # Typical QDrant Vector Store Set-up
 vectorstore = QdrantVectorStore(
@@ -79,7 +93,17 @@ vectorstore = QdrantVectorStore(
     collection_name=collection_name,
     embedding=cached_embedder)
 
-vectorstore.add_documents(split_documents)
+try:
+    start_time = time.time()
+    vectorstore.add_documents(split_documents)
+    end_time = time.time()
+    
+    logger.debug(f"Time to add documents to Qdrant: {end_time - start_time:.2f} seconds")
+    logger.info("Documents added to Qdrant successfully")
+except Exception as e:
+    logger.error(f"Error adding documents to Qdrant: {str(e)}")
+    raise
+
 mmr_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
 
 
