@@ -23,6 +23,38 @@ Cached RAG is a sample Retrieval-Augmented Generation (RAG) application that dem
 - [uv](https://github.com/astral-sh/uv) (for dependency management)
 - [Docker](https://www.docker.com/) (optional, for containerized runs)
 
+#### MongoDB Document Store:
+
+1. Pull latest MongoDB image from Dockerhub: `docker pull mongo`
+
+2. Set the env variables `MONGO_DOC_STORE_HOST` and `MONGO_DOC_STORE_PORT` in the `.env` file.
+
+3. Run MongoDB in a container:
+
+```
+docker run -p 27017:27017 \
+   -v "$(pwd)/mongo_storage:/data/db" \
+   --name mongo-docstore -d mongo:latest
+```
+
+This assumes `MONGO_DOC_STORE_PORT=27017`.
+
+#### Qdrant Vector Store:
+
+1. Pull latest Qdrant image from Dockerhub: `docker pull qdrant/qdrant`
+
+2. Set the env variables `QDRANT_HOST` and `QDRANT_PORT` in the `.env` file.
+
+3. Run Qdrant in a container:
+
+```
+docker run -p 6333:6333 -p 6334:6334 \
+   -v "$(pwd)/qdrant_storage:/qdrant/storage:z" \
+   qdrant/qdrant
+```
+
+This assumes `QDRANT_PORT=6333`
+
 ### Environment Variables
 
 Create a `.env` file in the project root by copying the file `.env.sample` and assign values to the keys. The keys `LANGCHAIN_TRACING_V2` and `LANGCHAIN_API_KEY` are optional.
