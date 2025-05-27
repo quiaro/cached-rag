@@ -57,7 +57,7 @@ This assumes `QDRANT_PORT=6333`
 
 #### Redis (LLM Semantic Cache):
 
-1. [Pull latest Redis image from Dockerhub](https://hub.docker.com/_/redis): `docker pull redis`
+1. [Pull latest Redis image from Dockerhub](https://hub.docker.com/r/redis/redis-stack): `docker pull redis/redis-stack`
 
 2. Set the env variables `REDIS_HOST` and `REDIS_PORT` in the `.env` file.
 
