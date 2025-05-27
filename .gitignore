@@ -1,6 +1,7 @@
 .DS_Store
 /cache/
 /qdrant_storage/
+/mongo_storage/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
