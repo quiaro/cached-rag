@@ -20,6 +20,8 @@ from langchain_qdrant import QdrantVectorStore
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.runnable.config import RunnableConfig
+from langchain_mongodb.docstores import MongoDBDocStore
+from mongo_byte_store import MongoDBByteStore
 
 # ---- ENV VARIABLES ---- # 
 """
@@ -38,6 +40,8 @@ HF_LLM_ENDPOINT = os.environ["HF_LLM_ENDPOINT"]
 HF_EMBED_ENDPOINT = os.environ["HF_EMBED_ENDPOINT"]
 QDRANT_HOST = os.environ["QDRANT_HOST"]
 QDRANT_PORT = os.environ["QDRANT_PORT"]
+MONGO_DOC_STORE_HOST = os.environ["MONGO_DOC_STORE_HOST"]
+MONGO_DOC_STORE_PORT = os.environ["MONGO_DOC_STORE_PORT"]
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
 # Configure logging
@@ -64,19 +68,23 @@ documents = text_loader.load()
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=30)
 split_documents = text_splitter.split_documents(documents)
 
-hf_embeddings = TogetherEmbeddings(
+t_embeddings = TogetherEmbeddings(
     model=HF_EMBED_ENDPOINT,
     api_key=TOGETHER_API_KEY,
 )
 
-safe_namespace = hashlib.md5(hf_embeddings.model.encode()).hexdigest()
+safe_namespace = hashlib.md5(t_embeddings.model.encode()).hexdigest()
 collection_name = "paul_graham_essays"
 
-store = LocalFileStore(f"./cache/{safe_namespace}/")
-cached_embedder = CacheBackedEmbeddings.from_bytes_store(
-    hf_embeddings, store, namespace=safe_namespace, batch_size=32
+docstore = MongoDBDocStore.from_connection_string(
+    connection_string=f"mongodb://{MONGO_DOC_STORE_HOST}:{MONGO_DOC_STORE_PORT}",
+    namespace=f"{safe_namespace}.{collection_name}"
 )
+store = MongoDBByteStore(docstore)
 
+cached_embedder = CacheBackedEmbeddings.from_bytes_store(
+    t_embeddings, store, namespace=safe_namespace, batch_size=32
+)
 
 client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 # Check if collection exists before creating it
