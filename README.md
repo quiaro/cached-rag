@@ -25,7 +25,7 @@ Cached RAG is a sample Retrieval-Augmented Generation (RAG) application that dem
 
 #### MongoDB Document Store:
 
-1. Pull latest MongoDB image from Dockerhub: `docker pull mongo`
+1. [Pull latest MongoDB image from Dockerhub](https://hub.docker.com/_/mongo): `docker pull mongo`
 
 2. Set the env variables `MONGO_DOC_STORE_HOST` and `MONGO_DOC_STORE_PORT` in the `.env` file.
 
@@ -41,7 +41,7 @@ This assumes `MONGO_DOC_STORE_PORT=27017`.
 
 #### Qdrant Vector Store:
 
-1. Pull latest Qdrant image from Dockerhub: `docker pull qdrant/qdrant`
+1. [Pull latest Qdrant image from Dockerhub](https://hub.docker.com/r/qdrant/qdrant): `docker pull qdrant/qdrant`
 
 2. Set the env variables `QDRANT_HOST` and `QDRANT_PORT` in the `.env` file.
 
@@ -54,6 +54,23 @@ docker run -p 6333:6333 -p 6334:6334 \
 ```
 
 This assumes `QDRANT_PORT=6333`
+
+#### Redis (LLM Semantic Cache):
+
+1. [Pull latest Redis image from Dockerhub](https://hub.docker.com/_/redis): `docker pull redis`
+
+2. Set the env variables `REDIS_HOST` and `REDIS_PORT` in the `.env` file.
+
+3. Run Redis in a container:
+
+```
+docker run -d --name redis-llm-cache \
+  -p 6379:6379 -p 8001:8001 \
+  -v "$(pwd)/redis_storage:/data" \
+  redis/redis-stack:latest
+```
+
+This assumes `REDIS_PORT=6379`
 
 ### Environment Variables
 

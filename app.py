@@ -22,6 +22,8 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.runnable.config import RunnableConfig
 from langchain_mongodb.docstores import MongoDBDocStore
 from mongo_byte_store import MongoDBByteStore
+from langchain_core.globals import set_llm_cache
+from langchain_redis.cache import RedisSemanticCache
 
 # ---- ENV VARIABLES ---- # 
 """
@@ -42,6 +44,8 @@ QDRANT_HOST = os.environ["QDRANT_HOST"]
 QDRANT_PORT = os.environ["QDRANT_PORT"]
 MONGO_DOC_STORE_HOST = os.environ["MONGO_DOC_STORE_HOST"]
 MONGO_DOC_STORE_PORT = os.environ["MONGO_DOC_STORE_PORT"]
+REDIS_HOST = os.environ["REDIS_HOST"]
+REDIS_PORT = os.environ["REDIS_PORT"]
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
 # Configure logging
@@ -57,8 +61,8 @@ os.environ["LANGCHAIN_PROJECT"] = f"Cached RAG - {timestamp}"
 """
 1. Load Documents from Text File
 2. Split Documents into Chunks
-3. Load HuggingFace Embeddings (remember to use the URL we set above)
-4. Index Files if they do not exist, otherwise load the vectorstore
+3. Load Embeddings Model
+4. Load vectorstore and cache embeddings if they do not exist.
 """
 ### 1. CREATE TEXT LOADER AND LOAD DOCUMENTS
 text_loader = TextLoader("./data/paul_graham_short.txt")
@@ -112,7 +116,7 @@ except Exception as e:
     logger.error(f"Error adding documents to Qdrant: {str(e)}")
     raise
 
-mmr_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
+mmr_retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 20})
 
 
 # -- AUGMENTED -- #
@@ -147,6 +151,14 @@ hf_llm = ChatTogether(
     request_timeout=20,
     api_key=TOGETHER_API_KEY,
 )
+
+# -- CACHE -- #
+semantic_cache = RedisSemanticCache(
+    redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}/",
+    embeddings=t_embeddings,
+    name=f"{safe_namespace}.{collection_name}"
+)
+set_llm_cache(semantic_cache)
 
 @cl.author_rename
 def rename(original_author: str):
